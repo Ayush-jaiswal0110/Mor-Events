@@ -1,6 +1,6 @@
 // src/api/client.ts
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
+const API_BASE_URL = 'https://mor-events-backend.onrender.com/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 
 export const getAuthToken = () => {
   return localStorage.getItem('morevents_token');
@@ -16,14 +16,14 @@ export const clearAuthToken = () => {
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   const headers: HeadersInit = {
     ...options.headers,
   };
-  
+
   // Conditionally add Content-Type if we're not sending FormData (from file uploads)
   if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
+    headers['Content-Type'] = 'application/json';
   }
 
   const token = getAuthToken();

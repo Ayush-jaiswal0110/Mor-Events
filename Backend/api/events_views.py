@@ -8,6 +8,16 @@ from django.utils.dateparse import parse_date
 
 from .database import events_collection, registrations_collection
 from .utils import login_required
+from bson.objectid import ObjectId
+
+def get_query_id(pk):
+    """Helper to try both string and ObjectId for PyMongo compatibility."""
+    if len(str(pk)) == 24:
+        try:
+            return {"$in": [pk, ObjectId(pk)]}
+        except:
+            pass
+    return pk
 
 def clean_mongo_dict(d):
     # Convert ObjectId to string safely if needed, but we use string IDs manually for frontend ease
@@ -87,8 +97,10 @@ def events_list(request):
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def event_detail(request, pk):
+    query_id = get_query_id(pk)
+    
     if request.method == 'GET':
-        event = events_collection.find_one({"_id": pk})
+        event = events_collection.find_one({"_id": query_id})
         if not event:
              return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
              
@@ -114,11 +126,11 @@ def event_detail(request, pk):
             if '_id' in data:
                 del data['_id']
                 
-            result = events_collection.update_one({"_id": pk}, {"$set": data})
+            result = events_collection.update_one({"_id": query_id}, {"$set": data})
             if result.matched_count == 0:
                 return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
                 
-            updated_event = events_collection.find_one({"_id": pk})
+            updated_event = events_collection.find_one({"_id": query_id})
             return Response({
                 "success": True,
                 "message": "Event updated successfully",
@@ -130,7 +142,7 @@ def event_detail(request, pk):
     elif request.method == 'DELETE':
         @login_required
         def delete_event(req):
-            result = events_collection.delete_one({"_id": pk})
+            result = events_collection.delete_one({"_id": query_id})
             if result.deleted_count == 0:
                 return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
                 

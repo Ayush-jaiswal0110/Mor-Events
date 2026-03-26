@@ -149,7 +149,7 @@ export function GallerySection() {
   const current = allMedia[currentIndex];
 
   return (
-    <section id="gallery" className="py-20 bg-gray-900 dark:bg-gray-950">
+    <section id="gallery" className="py-12 sm:py-20 bg-gray-900 dark:bg-gray-950">
       <div className="container mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -159,10 +159,10 @@ export function GallerySection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
             Previous Events Gallery
           </h2>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-lg text-gray-300 max-w-2xl mx-auto px-2">
             Relive the memories from our past adventures. Every journey tells a story.
           </p>
           <div className="w-24 h-1 bg-gradient-to-r from-[#008080] to-[#4B0082] mx-auto mt-4" />
@@ -180,7 +180,7 @@ export function GallerySection() {
         >
           {/* Main Slide */}
           <div
-            className="relative h-[500px] md:h-[600px] rounded-2xl overflow-hidden shadow-2xl cursor-pointer"
+            className="relative h-[280px] sm:h-[400px] md:h-[500px] lg:h-[600px] rounded-2xl overflow-hidden shadow-2xl cursor-pointer"
             onClick={() => setLightboxItem(current)}
           >
             <MediaSlide item={current} isActive={true} />
@@ -189,25 +189,25 @@ export function GallerySection() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
             {/* Event info */}
-            <div className="absolute bottom-6 left-6 right-6 text-white pointer-events-none">
-              <p className="text-sm text-white/70 mb-1">
+            <div className="absolute bottom-3 sm:bottom-6 left-3 sm:left-6 right-3 sm:right-6 text-white pointer-events-none">
+              <p className="text-xs sm:text-sm text-white/70 mb-1">
                 {new Date(current.eventDate).toLocaleDateString("en-IN", {
                   month: "long",
                   year: "numeric",
                 })}
               </p>
-              <h3 className="text-2xl font-bold">{current.eventName}</h3>
+              <h3 className="text-base sm:text-2xl font-bold leading-snug">{current.eventName}</h3>
               <div className="flex items-center gap-2 mt-1">
                 {current.type !== "image" ? (
-                  <span className="flex items-center gap-1 text-sm text-red-400">
+                  <span className="flex items-center gap-1 text-xs sm:text-sm text-red-400">
                     <Play className="w-3 h-3 fill-current" /> Video
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-sm text-blue-300">
+                  <span className="flex items-center gap-1 text-xs sm:text-sm text-blue-300">
                     <ImageIcon className="w-3 h-3" /> Photo
                   </span>
                 )}
-                <span className="text-white/50 text-sm">
+                <span className="text-white/50 text-xs sm:text-sm">
                   {currentIndex + 1} / {allMedia.length}
                 </span>
               </div>
@@ -219,17 +219,17 @@ export function GallerySection() {
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm z-10"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-12 sm:h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm z-10"
                 aria-label="Previous"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); goNext(); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm z-10"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-12 sm:h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm z-10"
                 aria-label="Next"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
               </button>
             </>
           )}
@@ -248,12 +248,12 @@ export function GallerySection() {
 
         {/* Thumbnails */}
         {allMedia.length > 1 && (
-          <div className="mt-6 flex gap-3 overflow-x-auto pb-2 max-w-5xl mx-auto scrollbar-thin">
+          <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3 overflow-x-auto pb-2 max-w-5xl mx-auto scrollbar-thin">
             {allMedia.map((item, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`relative flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden transition-all ${
+                className={`relative flex-shrink-0 w-14 h-10 sm:w-20 sm:h-14 rounded-lg overflow-hidden transition-all ${
                   index === currentIndex
                     ? "ring-2 ring-[#008080] ring-offset-2 ring-offset-gray-900 scale-105"
                     : "opacity-60 hover:opacity-100"
@@ -261,11 +261,11 @@ export function GallerySection() {
               >
                 {item.type !== "image" && item.type !== "instagram" ? (
                   <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-white fill-white" />
+                    <Play className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
                   </div>
                 ) : item.type === "instagram" ? (
                   <div className="w-full h-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 text-white" />
+                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                 ) : (
                   <img

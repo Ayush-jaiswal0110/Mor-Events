@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Calendar,
   Users,
+  Star,
   LogOut,
 } from "lucide-react";
 import logoImg from "../../assets/84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png";
@@ -60,6 +61,13 @@ export function AdminLayout() {
           >
             <Users className="h-5 w-5" />
             <span>Registrations</span>
+          </Link>
+          <Link
+            to="/admin/dashboard/reviews"
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <Star className="h-5 w-5" />
+            <span>Reviews</span>
           </Link>
         </nav>
 

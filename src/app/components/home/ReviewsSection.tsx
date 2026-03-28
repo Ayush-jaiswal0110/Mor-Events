@@ -28,8 +28,8 @@ export function ReviewsSection() {
       try {
         const res = await apiFetch("/reviews");
         if (res.success && res.data) {
-          // Filter to only approved reviews, assuming structure has { status: 'approved' }
-          const approved = res.data.filter((r: any) => r.status !== 'pending' && r.status !== 'rejected');
+          // Only show admin-approved reviews on the landing page
+          const approved = res.data.filter((r: any) => r.status === 'approved');
           setReviews(approved);
         }
       } catch (error) {

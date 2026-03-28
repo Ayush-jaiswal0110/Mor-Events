@@ -7,6 +7,7 @@ import { AdminLogin } from "./pages/admin/AdminLogin";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { ManageEvents } from "./pages/admin/ManageEvents";
 import { Registrations } from "./pages/admin/Registrations";
+import { ManageReviews } from "./pages/admin/ManageReviews";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
           { index: true, element: <AdminDashboard /> },
           { path: "events", element: <ManageEvents /> },
           { path: "registrations", element: <Registrations /> },
+          { path: "reviews", element: <ManageReviews /> },
         ],
       },
     ],

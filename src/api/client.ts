@@ -1,6 +1,6 @@
 // src/api/client.ts
 
-const API_BASE_URL = 'https://mor-events-backend.onrender.com/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
+export const API_BASE_URL = 'https://mor-events-backend.onrender.com/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 
 // export const API_BASE_URL = 'http://localhost:8000/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 

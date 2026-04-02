@@ -1,8 +1,8 @@
 // src/api/client.ts
 
-// const API_BASE_URL = 'https://mor-events-backend.onrender.com/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
+const API_BASE_URL = 'https://mor-events-backend.onrender.com/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 
-export const API_BASE_URL = 'http://localhost:8000/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
+// export const API_BASE_URL = 'http://localhost:8000/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 
 export const getAuthToken = () => {
   return localStorage.getItem('morevents_token');
@@ -42,7 +42,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   if (!response.ok) {
     if (response.status === 401) {
       clearAuthToken();
-      
+
       // Auto-redirect to login if not already there
       if (!window.location.pathname.includes('/auth/login') && window.location.pathname.startsWith('/admin')) {
         window.location.href = '/admin';

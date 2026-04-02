@@ -356,6 +356,13 @@ export const normalizeYouTubeUrl = (url: string): string => {
   return url;
 };
 
+export const normalizeInstagramUrl = (url: string): string => {
+  const baseUrl = url.split("?")[0];
+  const urlWithSlash = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+  // The embed endpoint
+  return urlWithSlash + "embed";
+};
+
 // Legacy helpers (kept for backward compat, use context for mutable operations)
 export const getEventById = (id: string): Event | undefined => {
   return eventsData.find((event) => event.id === id);

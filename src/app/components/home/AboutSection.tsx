@@ -59,6 +59,9 @@ export function AboutSection() {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 OC Head - Yoga and Fitness Club, IIPS DAVV
               </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Associate Software Developer @ Reqpedia
+              </p>
             </div>
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
               Founded by Ayush Jaiswal, Mor Events is a travel and

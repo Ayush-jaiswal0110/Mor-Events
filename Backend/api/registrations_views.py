@@ -10,6 +10,8 @@ from rest_framework import status
 from .database import registrations_collection, events_collection
 from .utils import login_required
 from .events_views import clean_mongo_dict
+from .email_utils import send_confirmation_email, send_whatsapp_invite_email, send_payment_failed_email
+import threading
 
 @api_view(['GET', 'POST'])
 def registrations_list(request):
@@ -66,6 +68,8 @@ def registrations_list(request):
             "eventName": event.get('name', ''),
             "paymentStatus": data.get('paymentStatus', 'pending'), # Might be provided by external integrations initially or purely pending
             "paymentId": data.get('paymentId', ''),
+            "paymentMethod": data.get('paymentMethod', 'pending'),
+            "paymentScreenshot": data.get('paymentScreenshot', ''),
             "amount": event.get('price', 0),
             "emergencyContact": data.get('emergencyContact', ''),
             "medicalConditions": data.get('medicalConditions', ''),
@@ -74,6 +78,13 @@ def registrations_list(request):
         }
         
         registrations_collection.insert_one(new_reg)
+        
+        # Send confirmation email asynchronously so it doesn't block the response
+        def send_email_task():
+            send_confirmation_email(new_reg, event)
+            
+        threading.Thread(target=send_email_task).start()
+
         return Response({
             "success": True,
             "message": "Registration successful",
@@ -116,7 +127,17 @@ def registration_payment(request, pk):
     result = registrations_collection.update_one({"_id": pk}, {"$set": updates})
     if result.matched_count == 0:
         return Response({"success": False, "message": "Registration not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+
+    # If payment was marked as failed, send cancellation email asynchronously
+    if data.get('paymentStatus') == 'failed':
+        reg = registrations_collection.find_one({"_id": pk})
+        if reg:
+            event = events_collection.find_one({"_id": reg.get("eventId")})
+            if event:
+                def send_failed_email_task():
+                    send_payment_failed_email(reg, event)
+                threading.Thread(target=send_failed_email_task).start()
+
     return Response({
         "success": True,
         "message": "Payment status updated successfully"
@@ -136,18 +157,55 @@ def export_registrations(request):
     response['Content-Disposition'] = 'attachment; filename="registrations.csv"'
     
     writer = csv.writer(response)
-    writer.writerow(['Registration ID', 'Name', 'Email', 'Phone', 'Event', 'Payment Status', 'Amount', 'Registered At'])
+    writer.writerow(['Registration ID', 'Name', 'Email', 'Phone', 'Event', 'Payment Status', 'Payment Method', 'Screenshot URL', 'Amount', 'Registered At'])
     
     for r in regs:
         writer.writerow([
-            r.get('_id'),
+            r.get('registrationNumber', r.get('_id')),
             r.get('name'),
             r.get('email'),
             r.get('phone'),
             r.get('eventName'),
             r.get('paymentStatus'),
+            r.get('paymentMethod', 'unknown'),
+            r.get('paymentScreenshot', ''),
             r.get('amount'),
             r.get('registeredAt')
         ])
         
     return response
+
+@api_view(['POST'])
+@login_required
+def invite_whatsapp(request):
+    event_id = request.data.get('eventId')
+    whatsapp_link = request.data.get('link')
+    
+    if not event_id or not whatsapp_link:
+        return Response({"success": False, "message": "eventId and WhatsApp link are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    event = events_collection.find_one({"id": event_id}) # Note: wait, in previous code event is searched by `{"_id": pk}` or `{"id": pk}` depending on context. Let's use `find_one` properly.
+    if not event:
+        # Some endpoints used format {"_id": event_id}. Let's fall back gracefully.
+        event = events_collection.find_one({"_id": event_id})
+        
+    if not event:
+        return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+    event_name = event.get('name', 'MorEvents Adventure')
+    
+    # Get all users for this event
+    regs = list(registrations_collection.find({"eventId": event_id}))
+    if len(regs) == 0:
+        return Response({"success": False, "message": "No registrations found for this event"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Start thread to prevent connection block
+    def trigger_emails():
+        send_whatsapp_invite_email(regs, event_name, whatsapp_link)
+        
+    threading.Thread(target=trigger_emails).start()
+    
+    return Response({
+        "success": True,
+        "message": f"WhatsApp community invite queued for {len(regs)} attendees."
+    }, status=status.HTTP_200_OK)

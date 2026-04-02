@@ -19,7 +19,7 @@ def dashboard_stats(request):
         {"$group": {"_id": None, "totalRevenue": {"$sum": "$amount"}}}
     ]
     rev_res = list(registrations_collection.aggregate(pipeline_rev))
-    total_revenue = rev_res[0]['totalRevenue'] if rev_res else 0
+    total_revenue = rev_res[0].get('totalRevenue') if (rev_res and rev_res[0].get('totalRevenue') is not None) else 0
     
     pending_payments = registrations_collection.count_documents({"paymentStatus": "pending"})
     
@@ -28,7 +28,7 @@ def dashboard_stats(request):
         {"$group": {"_id": None, "avgRating": {"$avg": "$rating"}}}
     ]
     rat_res = list(reviews_collection.aggregate(pipeline_rating))
-    avg_rating = rat_res[0]['avgRating'] if rat_res else 0.0
+    avg_rating = rat_res[0].get('avgRating') if (rat_res and rat_res[0].get('avgRating') is not None) else 0.0
     
     total_reviews = reviews_collection.count_documents({})
     
@@ -79,23 +79,29 @@ def event_participation_stats(request):
     data = []
     
     for evt in events:
-        evt_id = evt['_id']
-        total_regs = registrations_collection.count_documents({"eventId": evt_id})
-        paid_regs = registrations_collection.count_documents({"eventId": evt_id, "paymentStatus": "paid"})
+        # If the user created an event manually in MongoDB, it possesses an ObjectId which breaks JSON 
+        evt_id_raw = evt.get('_id')
+        evt_id = str(evt_id_raw)
+        
+        # In Registration DB, the eventId might be saved as string or object ID. Let's check both or primarily string
+        query_match = {"eventId": {"$in": [evt_id, evt_id_raw]}}
+        
+        total_regs = registrations_collection.count_documents(query_match)
+        paid_regs = registrations_collection.count_documents({"$or": [{"eventId": evt_id, "paymentStatus": "paid"}, {"eventId": evt_id_raw, "paymentStatus": "paid"}]})
         
         rev_pipeline = [
-            {"$match": {"eventId": evt_id, "paymentStatus": "paid"}},
+            {"$match": {"$or": [{"eventId": evt_id, "paymentStatus": "paid"}, {"eventId": evt_id_raw, "paymentStatus": "paid"}]}},
             {"$group": {"_id": None, "rev": {"$sum": "$amount"}}}
         ]
         rev_res = list(registrations_collection.aggregate(rev_pipeline))
-        revenue = rev_res[0]['rev'] if rev_res else 0
+        revenue = rev_res[0].get('rev') if (rev_res and rev_res[0].get('rev') is not None) else 0
         
         rat_pipeline = [
-            {"$match": {"eventId": evt_id}},
+            {"$match": {"$or": [{"eventId": evt_id}, {"eventId": evt_id_raw}]}},
             {"$group": {"_id": None, "rating": {"$avg": "$rating"}}}
         ]
         rat_res = list(reviews_collection.aggregate(rat_pipeline))
-        avg_rating = rat_res[0]['rating'] if rat_res else 0.0
+        avg_rating = rat_res[0].get('rating') if (rat_res and rat_res[0].get('rating') is not None) else 0.0
         
         data.append({
             "eventId": evt_id,

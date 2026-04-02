@@ -3,6 +3,7 @@ import { MainLayout } from "./layouts/MainLayout";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { HomePage } from "./pages/HomePage";
 import { EventDetailPage } from "./pages/EventDetailPage";
+import { TermsPage } from "./pages/TermsPage";
 import { AdminLogin } from "./pages/admin/AdminLogin";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { ManageEvents } from "./pages/admin/ManageEvents";
@@ -16,6 +17,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "event/:id", element: <EventDetailPage /> },
+      { path: "terms", element: <TermsPage /> },
     ],
   },
   {

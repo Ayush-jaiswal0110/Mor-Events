@@ -16,8 +16,8 @@ import {
   Check,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState, useCallback } from "react";
-import { getMediaType, normalizeYouTubeUrl } from "../data/mockData";
+import { useState, useCallback, useEffect } from "react";
+import { getMediaType, normalizeYouTubeUrl, normalizeInstagramUrl } from "../data/mockData";
 import { RegistrationModal } from "../components/events/RegistrationModal";
 
 function FormattedText({ text }: { text: string }) {
@@ -66,6 +66,22 @@ function MediaItem({ url, title }: { url: string; title: string }) {
           className="w-full h-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
+          title={title}
+        />
+      </div>
+    );
+  }
+
+  if (type === "instagram") {
+    const embedUrl = normalizeInstagramUrl(url);
+    return (
+      <div className="w-full h-full bg-gray-100 dark:bg-black flex items-center justify-center">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full max-w-[400px] border-none shadow-sm bg-white"
+          scrolling="yes"
+          allowTransparency
+          allow="encrypted-media"
           title={title}
         />
       </div>
@@ -203,6 +219,10 @@ export function EventDetailPage() {
   const { getEventById } = useEvents();
   const event = getEventById(id || "");
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
   if (!event) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
@@ -320,7 +340,7 @@ export function EventDetailPage() {
 
                 {/* Register button */}
                 {event.status === "upcoming" && (
-                  <RegistrationModal eventId={event.id} eventName={event.name} />
+                  <RegistrationModal eventId={event.id} eventName={event.name} eventPrice={event.price} />
                 )}
 
                 {/* Completed notice */}

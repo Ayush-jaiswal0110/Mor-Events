@@ -49,6 +49,31 @@ def upload_image(request):
         return Response({"success": False, "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def upload_payment_screenshot(request):
+    file_obj = request.FILES.get('file')
+    
+    if not file_obj:
+        return Response({"success": False, "message": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        upload_data = cloudinary.uploader.upload(
+            file_obj, 
+            folder="MorEvents/payment_screenshots", 
+            resource_type="image"
+        )
+        return Response({
+            "success": True,
+            "message": "Screenshot uploaded successfully",
+            "data": {
+                "imageId": upload_data.get("public_id"),
+                "url": upload_data.get("secure_url"),
+            }
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"success": False, "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
 @login_required
 @parser_classes([MultiPartParser, FormParser])
 def upload_video(request):

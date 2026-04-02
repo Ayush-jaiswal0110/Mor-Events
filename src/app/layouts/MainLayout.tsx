@@ -21,6 +21,10 @@ export function MainLayout() {
   };
 
   const scrollToSection = (sectionId: string) => {
+    if (window.location.pathname !== "/") {
+      window.location.href = "/#" + sectionId;
+      return;
+    }
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
@@ -85,6 +89,12 @@ export function MainLayout() {
               >
                 Contact
               </button>
+              <Link
+                to="/terms"
+                className="text-gray-700 dark:text-gray-300 hover:text-[#0F3057] dark:hover:text-white transition-colors font-medium"
+              >
+                Terms
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
@@ -170,6 +180,13 @@ export function MainLayout() {
                 >
                   Contact
                 </button>
+                <Link
+                  to="/terms"
+                  className="text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Terms
+                </Link>
                 <Link to="/admin" className="px-4">
                   <Button variant="outline" size="sm" className="w-full">
                     Admin Login

@@ -5,6 +5,7 @@ from . import registrations_views
 from . import reviews_views
 from . import analytics_views
 from . import integrations_views
+from . import razorpay_views
 from . import contact_views
 
 urlpatterns = [
@@ -20,6 +21,7 @@ urlpatterns = [
     # Registrations
     path('registrations', registrations_views.registrations_list),
     path('registrations/export', registrations_views.export_registrations),
+    path('registrations/invite-whatsapp', registrations_views.invite_whatsapp),
     path('registrations/<str:pk>', registrations_views.registration_detail),
     path('registrations/<str:pk>/payment', registrations_views.registration_payment),
     
@@ -36,7 +38,12 @@ urlpatterns = [
     # Uploads (Cloudinary)
     path('upload/image', integrations_views.upload_image),
     path('upload/video', integrations_views.upload_video),
+    path('upload/payment-screenshot', integrations_views.upload_payment_screenshot),
     re_path(r'^upload/(?P<pk>.+)$', integrations_views.delete_file), # For cloudinary public ids with slashes
+    
+    # Razorpay Payments
+    path('payments/create-order', razorpay_views.create_order),
+    path('payments/verify', razorpay_views.verify_payment),
     
     # Google Sheets
     path('integrations/google-sheets/connect', integrations_views.connect_google_sheets),

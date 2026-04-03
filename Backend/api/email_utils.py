@@ -1,17 +1,11 @@
 """
-email_utils.py — Email sending for MorEvents registrations.
-
-Supports TWO transports (checked in order):
-  1. Resend API  — set RESEND_API_KEY  (works on Render / cloud)
-  2. Gmail SMTP  — set EMAIL_HOST_PASSWORD (works locally)
-
-If RESEND_API_KEY is present it is always preferred.
+email_utils.py — Gmail SMTP confirmation email for MorEvents registrations.
+Uses Python's built-in smtplib — no extra pip packages required.
 """
 
 import os
 import smtplib
 import logging
-import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
@@ -20,113 +14,11 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# ── Resend config ────────────────────────────────────────────────
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "MorEvents <onboarding@resend.dev>")
-
-# ── SMTP config (fallback) ──────────────────────────────────────
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "moreventsofficial@gmail.com")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
-
-# ═══════════════════════════════════════════════════════════════
-#  Unified email dispatcher
-# ═══════════════════════════════════════════════════════════════
-
-def _send_email(*, to: str, subject: str, html: str, plain_text: str) -> bool:
-    """
-    Send an email using the best available transport.
-    Returns True on success, False on failure.
-    """
-    if RESEND_API_KEY:
-        return _send_via_resend(to=to, subject=subject, html=html, plain_text=plain_text)
-    elif EMAIL_HOST_PASSWORD:
-        return _send_via_smtp(to=to, subject=subject, html=html, plain_text=plain_text)
-    else:
-        logger.warning("No email transport configured (set RESEND_API_KEY or EMAIL_HOST_PASSWORD)")
-        return False
-
-
-def _send_via_resend(*, to: str, subject: str, html: str, plain_text: str) -> bool:
-    """Send email via Resend HTTP API (no SMTP needed)."""
-    try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": RESEND_FROM_EMAIL,
-                "to": [to],
-                "subject": subject,
-                "html": html,
-                "text": plain_text,
-            },
-            timeout=15,
-        )
-        if response.status_code in (200, 201):
-            logger.info(f"[Resend] Email sent to {to} — {response.json()}")
-            return True
-        else:
-            logger.error(f"[Resend] Failed to send to {to}: {response.status_code} {response.text}")
-            return False
-    except Exception as exc:
-        logger.error(f"[Resend] Exception sending to {to}: {exc}")
-        return False
-
-
-def _send_via_smtp(*, to: str, subject: str, html: str, plain_text: str) -> bool:
-    """Send email via Gmail SMTP (works locally)."""
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
-    msg["To"] = to
-    msg["Reply-To"] = EMAIL_HOST_USER
-
-    msg.attach(MIMEText(plain_text, "plain"))
-
-    # Build related part for HTML + inline logo
-    html_part = MIMEMultipart("related")
-    html_part.attach(MIMEText(html, "html"))
-
-    # Try to attach inline logo
-    try:
-        from email.mime.image import MIMEImage
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        root_dir = os.path.dirname(backend_dir)
-        logo_path = os.path.join(root_dir, "src", "assets", "84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png")
-        if os.path.exists(logo_path):
-            with open(logo_path, "rb") as f:
-                img_data = f.read()
-            image = MIMEImage(img_data, name="logo.png")
-            image.add_header("Content-ID", "<logo_img>")
-            image.add_header("Content-Disposition", "inline", filename="logo.png")
-            html_part.attach(image)
-    except Exception as e:
-        logger.error(f"Failed to attach logo: {e}")
-
-    msg.attach(html_part)
-
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-            server.sendmail(EMAIL_HOST_USER, [to], msg.as_string())
-        logger.info(f"[SMTP] Email sent to {to}")
-        return True
-    except Exception as exc:
-        logger.error(f"[SMTP] Failed to send to {to}: {exc}")
-        return False
-
-
-# ═══════════════════════════════════════════════════════════════
-#  Helpers
-# ═══════════════════════════════════════════════════════════════
 
 def _format_date(date_str: str) -> str:
     """Convert ISO date to human-readable format, e.g. '2026-04-19' → '19 April 2026'."""
@@ -138,35 +30,13 @@ def _format_date(date_str: str) -> str:
         return date_str
 
 
-def _logo_src() -> str:
-    """
-    Return the logo <img> src depending on transport.
-    - SMTP  → cid:logo_img  (inline attachment)
-    - Resend → empty string  (logo skipped in the email)
-    """
-    if RESEND_API_KEY:
-        # Resend doesn't support CID inline images the same way.
-        # We return an empty string; the img tag will just not display.
-        return ""
-    return "cid:logo_img"
-
-
-# ═══════════════════════════════════════════════════════════════
-#  HTML Templates
-# ═══════════════════════════════════════════════════════════════
-
-def _build_confirmation_html(reg: dict, event: dict) -> str:
+def _build_html(reg: dict, event: dict) -> str:
     event_name = event.get("name", "the event")
     event_date = _format_date(event.get("date", ""))
     event_venue = event.get("venue", "the venue")
     amount = event.get("price", 0)
     user_name = reg.get("name", "Adventurer")
     reg_number = reg.get("registrationNumber", reg.get("_id", ""))
-    logo = _logo_src()
-
-    logo_block = ""
-    if logo:
-        logo_block = f'<img src="{logo}" alt="MorEvents Logo" style="width:80px;height:80px;border-radius:50%;margin-bottom:12px;border:3px solid rgba(255,255,255,0.5);" />'
 
     return f"""
 <!DOCTYPE html>
@@ -185,7 +55,7 @@ def _build_confirmation_html(reg: dict, event: dict) -> str:
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#0F3057 0%,#008080 100%);padding:36px 40px;text-align:center;">
-              {logo_block}
+              <img src="cid:logo_img" alt="MorEvents Logo" style="width:80px;height:80px;border-radius:50%;margin-bottom:12px;border:3px solid rgba(255,255,255,0.5);" />
               <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">MorEvents</h1>
               <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">Travel. Explore. Experience.</p>
             </td>
@@ -290,45 +160,183 @@ def _build_confirmation_html(reg: dict, event: dict) -> str:
 """
 
 
-def _build_whatsapp_html(user_name: str, event_name: str, whatsapp_link: str) -> str:
-    logo = _logo_src()
-    logo_block = ""
-    if logo:
-        logo_block = f'<img src="{logo}" alt="MorEvents Logo" style="width:64px;height:64px;border-radius:50%;margin-bottom:12px;border:2px solid rgba(255,255,255,0.4);" />'
+def send_confirmation_email(reg: dict, event: dict) -> bool:
+    """
+    Send a booking confirmation email to the registrant.
+    Returns True on success, False on failure (caller should not raise).
+    """
+    recipient = reg.get("email")
+    if not recipient:
+        logger.warning("No recipient email in registration — skipping confirmation mail.")
+        return False
 
-    return f"""
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8" /></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
-          <tr>
-            <td style="background:#128C7E;padding:36px;text-align:center;">
-              {logo_block}
-              <h1 style="margin:0;color:#ffffff;font-size:24px;">💬 Join Our WhatsApp Community</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:40px;text-align:center;">
-              <h2 style="margin:0 0 16px;color:#333;">Hi {user_name}!</h2>
-              <p style="margin:0 0 24px;color:#555;line-height:1.6;">
-                The <strong>{event_name}</strong> is coming up and we are so excited! We have created a WhatsApp group to keep everyone easily updated, share itineraries, and connect before the event.
-              </p>
-              <a href="{whatsapp_link}" style="display:inline-block;padding:14px 28px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">
-                Join WhatsApp Group
-              </a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-"""
+    if not EMAIL_HOST_PASSWORD:
+        logger.warning("EMAIL_HOST_PASSWORD not configured — skipping confirmation mail.")
+        return False
+
+    event_name = event.get("name", "the event")
+    user_name = reg.get("name", "Adventurer")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Booking Confirmed! 🎉 — {event_name} | MorEvents"
+    msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
+    msg["To"] = recipient
+    msg["Reply-To"] = EMAIL_HOST_USER
+
+    # Plain-text fallback
+    plain_text = (
+        f"Hi {user_name},\n\n"
+        f"Your booking for {event_name} is confirmed! 🎉\n\n"
+        f"Event Date: {event.get('date', '')}\n"
+        f"Venue: {event.get('venue', '')}\n"
+        f"Amount Paid: ₹{event.get('price', 0)}\n"
+        f"Booking ID: {reg.get('registrationNumber', reg.get('_id', ''))}\n\n"
+        f"Our team will contact you with further details.\n\n"
+        f"For queries: moreventsofficial@gmail.com | +91 70248 96018\n\n"
+        f"— Team MorEvents"
+    )
+    msg.attach(MIMEText(plain_text, "plain"))
+    
+    html_part = MIMEMultipart("related")
+    html_part.attach(MIMEText(_build_html(reg, event), "html"))
+
+    try:
+        from email.mime.image import MIMEImage
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root_dir = os.path.dirname(backend_dir)
+        logo_path = os.path.join(root_dir, "src", "assets", "84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                img_data = f.read()
+            image = MIMEImage(img_data, name="logo.png")
+            image.add_header('Content-ID', '<logo_img>')
+            image.add_header('Content-Disposition', 'inline', filename='logo.png')
+            html_part.attach(image)
+    except Exception as e:
+        logger.error(f"Failed to attach logo: {e}")
+
+    msg.attach(html_part)
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+            server.sendmail(EMAIL_HOST_USER, [recipient], msg.as_string())
+        logger.info(f"Confirmation email sent to {recipient}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to send confirmation email to {recipient}: {exc}")
+        return False
+
+def send_whatsapp_invite_email(registrations: list, event_name: str, whatsapp_link: str) -> dict:
+    """
+    Sends a WhatsApp community invite to a list of users.
+    Returns tracking info.
+    """
+    if not EMAIL_HOST_PASSWORD:
+        logger.warning("EMAIL_HOST_PASSWORD not configured — skipping whatsapp invite.")
+        return {"success": False, "message": "Email not configured"}
+
+    sent_count = 0
+    failed_count = 0
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+
+            for reg in registrations:
+                recipient = reg.get("email")
+                if not recipient:
+                    continue
+
+                user_name = reg.get("name", "Adventurer")
+
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"Join the WhatsApp Community! 💬 — {event_name} | MorEvents"
+                msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
+                msg["To"] = recipient
+                msg["Reply-To"] = EMAIL_HOST_USER
+
+                plain_text = (
+                    f"Hi {user_name},\n\n"
+                    f"Get ready for {event_name}! 🎉\n\n"
+                    f"Please join our official WhatsApp Community to get all the latest updates, connect with fellow travelers, and receive important instructions.\n\n"
+                    f"Join here: {whatsapp_link}\n\n"
+                    f"— Team MorEvents"
+                )
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head><meta charset="UTF-8" /></head>
+                <body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+                    <tr>
+                      <td align="center">
+                        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+                          <tr>
+                            <td style="background:#128C7E;padding:36px;text-align:center;">
+                              <img src="cid:logo_img" alt="MorEvents Logo" style="width:64px;height:64px;border-radius:50%;margin-bottom:12px;border:2px solid rgba(255,255,255,0.4);" />
+                              <h1 style="margin:0;color:#ffffff;font-size:24px;">💬 Join Our WhatsApp Community</h1>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:40px;text-align:center;">
+                              <h2 style="margin:0 0 16px;color:#333;">Hi {user_name}!</h2>
+                              <p style="margin:0 0 24px;color:#555;line-height:1.6;">
+                                The <strong>{event_name}</strong> is coming up and we are so excited! We have created a WhatsApp group to keep everyone easily updated, share itineraries, and connect before the event.
+                              </p>
+                              <a href="{whatsapp_link}" style="display:inline-block;padding:14px 28px;background:#25D366;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">
+                                Join WhatsApp Group
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """
+
+                msg.attach(MIMEText(plain_text, "plain"))
+                
+                html_part = MIMEMultipart("related")
+                html_part.attach(MIMEText(html_content, "html"))
+                
+                try:
+                    from email.mime.image import MIMEImage
+                    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    root_dir = os.path.dirname(backend_dir)
+                    logo_path = os.path.join(root_dir, "src", "assets", "84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png")
+                    if os.path.exists(logo_path):
+                        with open(logo_path, 'rb') as f:
+                            img_data = f.read()
+                        image = MIMEImage(img_data, name="logo.png")
+                        image.add_header('Content-ID', '<logo_img>')
+                        image.add_header('Content-Disposition', 'inline', filename='logo.png')
+                        html_part.attach(image)
+                except Exception as e:
+                    logger.error(f"Failed to attach logo: {e}")
+
+                msg.attach(html_part)
+
+                try:
+                    server.sendmail(EMAIL_HOST_USER, [recipient], msg.as_string())
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send WA invite to {recipient}: {e}")
+                    failed_count += 1
+                    
+        return {"success": True, "sent": sent_count, "failed": failed_count}
+    except Exception as exc:
+        logger.error(f"SMTP Server connection failed for broadcast: {exc}")
+        return {"success": False, "message": str(exc)}
 
 
 def _build_failed_html(reg: dict, event: dict) -> str:
@@ -336,11 +344,6 @@ def _build_failed_html(reg: dict, event: dict) -> str:
     event_date = _format_date(event.get("date", ""))
     user_name = reg.get("name", "Adventurer")
     reg_number = reg.get("registrationNumber", reg.get("_id", ""))
-    logo = _logo_src()
-
-    logo_block = ""
-    if logo:
-        logo_block = f'<img src="{logo}" alt="MorEvents Logo" style="width:80px;height:80px;border-radius:50%;margin-bottom:12px;border:3px solid rgba(255,255,255,0.5);" />'
 
     return f"""
 <!DOCTYPE html>
@@ -359,7 +362,7 @@ def _build_failed_html(reg: dict, event: dict) -> str:
           <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#7f0000 0%,#c0392b 100%);padding:36px 40px;text-align:center;">
-              {logo_block}
+              <img src="cid:logo_img" alt="MorEvents Logo" style="width:80px;height:80px;border-radius:50%;margin-bottom:12px;border:3px solid rgba(255,255,255,0.5);" />
               <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">MorEvents</h1>
               <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">Travel. Explore. Experience.</p>
             </td>
@@ -471,75 +474,6 @@ def _build_failed_html(reg: dict, event: dict) -> str:
 """
 
 
-# ═══════════════════════════════════════════════════════════════
-#  Public API — unchanged signatures
-# ═══════════════════════════════════════════════════════════════
-
-def send_confirmation_email(reg: dict, event: dict) -> bool:
-    """
-    Send a booking confirmation email to the registrant.
-    Returns True on success, False on failure (caller should not raise).
-    """
-    recipient = reg.get("email")
-    if not recipient:
-        logger.warning("No recipient email in registration — skipping confirmation mail.")
-        return False
-
-    event_name = event.get("name", "the event")
-    user_name = reg.get("name", "Adventurer")
-
-    subject = f"Booking Confirmed! 🎉 — {event_name} | MorEvents"
-    plain_text = (
-        f"Hi {user_name},\n\n"
-        f"Your booking for {event_name} is confirmed! 🎉\n\n"
-        f"Event Date: {event.get('date', '')}\n"
-        f"Venue: {event.get('venue', '')}\n"
-        f"Amount Paid: ₹{event.get('price', 0)}\n"
-        f"Booking ID: {reg.get('registrationNumber', reg.get('_id', ''))}\n\n"
-        f"Our team will contact you with further details.\n\n"
-        f"For queries: moreventsofficial@gmail.com | +91 70248 96018\n\n"
-        f"— Team MorEvents"
-    )
-    html = _build_confirmation_html(reg, event)
-
-    return _send_email(to=recipient, subject=subject, html=html, plain_text=plain_text)
-
-
-def send_whatsapp_invite_email(registrations: list, event_name: str, whatsapp_link: str) -> dict:
-    """
-    Sends a WhatsApp community invite to a list of users.
-    Returns tracking info.
-    """
-    sent_count = 0
-    failed_count = 0
-
-    for reg in registrations:
-        recipient = reg.get("email")
-        if not recipient:
-            continue
-
-        user_name = reg.get("name", "Adventurer")
-
-        subject = f"Join the WhatsApp Community! 💬 — {event_name} | MorEvents"
-        plain_text = (
-            f"Hi {user_name},\n\n"
-            f"Get ready for {event_name}! 🎉\n\n"
-            f"Please join our official WhatsApp Community to get all the latest updates, "
-            f"connect with fellow travelers, and receive important instructions.\n\n"
-            f"Join here: {whatsapp_link}\n\n"
-            f"— Team MorEvents"
-        )
-        html = _build_whatsapp_html(user_name, event_name, whatsapp_link)
-
-        ok = _send_email(to=recipient, subject=subject, html=html, plain_text=plain_text)
-        if ok:
-            sent_count += 1
-        else:
-            failed_count += 1
-
-    return {"success": sent_count > 0, "sent": sent_count, "failed": failed_count}
-
-
 def send_payment_failed_email(reg: dict, event: dict) -> bool:
     """
     Send a payment-failed / registration-cancelled email to the registrant.
@@ -550,15 +484,23 @@ def send_payment_failed_email(reg: dict, event: dict) -> bool:
         logger.warning("No recipient email in registration — skipping failed payment mail.")
         return False
 
+    if not EMAIL_HOST_PASSWORD:
+        logger.warning("EMAIL_HOST_PASSWORD not configured — skipping failed payment mail.")
+        return False
+
     event_name = event.get("name", "the event")
     user_name = reg.get("name", "Adventurer")
 
-    subject = f"Registration Cancelled ❌ — {event_name} | MorEvents"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Registration Cancelled ❌ — {event_name} | MorEvents"
+    msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
+    msg["To"] = recipient
+    msg["Reply-To"] = EMAIL_HOST_USER
+
     plain_text = (
         f"Hi {user_name},\n\n"
         f"We regret to inform you that your registration for {event_name} has been CANCELLED.\n\n"
-        f"Reason: The payment screenshot you submitted could not be verified. "
-        f"It appears to be incorrect or invalid.\n\n"
+        f"Reason: The payment screenshot you submitted could not be verified. It appears to be incorrect or invalid.\n\n"
         f"What you can do:\n"
         f"  - Re-register with a valid payment screenshot.\n"
         f"  - Ensure the screenshot clearly shows the transaction ID, amount, and recipient.\n"
@@ -567,6 +509,37 @@ def send_payment_failed_email(reg: dict, event: dict) -> bool:
         f"For queries: moreventsofficial@gmail.com | +91 70248 96018\n\n"
         f"— Team MorEvents"
     )
-    html = _build_failed_html(reg, event)
+    msg.attach(MIMEText(plain_text, "plain"))
 
-    return _send_email(to=recipient, subject=subject, html=html, plain_text=plain_text)
+    html_part = MIMEMultipart("related")
+    html_part.attach(MIMEText(_build_failed_html(reg, event), "html"))
+
+    try:
+        from email.mime.image import MIMEImage
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root_dir = os.path.dirname(backend_dir)
+        logo_path = os.path.join(root_dir, "src", "assets", "84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                img_data = f.read()
+            image = MIMEImage(img_data, name="logo.png")
+            image.add_header('Content-ID', '<logo_img>')
+            image.add_header('Content-Disposition', 'inline', filename='logo.png')
+            html_part.attach(image)
+    except Exception as e:
+        logger.error(f"Failed to attach logo: {e}")
+
+    msg.attach(html_part)
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+            server.sendmail(EMAIL_HOST_USER, [recipient], msg.as_string())
+        logger.info(f"Payment-failed email sent to {recipient}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to send payment-failed email to {recipient}: {exc}")
+        return False

@@ -4,7 +4,7 @@ cffi==2.0.0
 charset-normalizer==3.4.6
 cloudinary==1.44.1
 cryptography==46.0.5
-Django==6.0.3
+Django==5.2.12
 django-cors-headers==4.9.0
 djangorestframework==3.17.0
 dnspython==2.8.0
@@ -27,4 +27,4 @@ six==1.17.0
 sqlparse==0.5.5
 tzdata==2025.3
 urllib3==2.6.3
-razorpay
+razorpay==1.4.2

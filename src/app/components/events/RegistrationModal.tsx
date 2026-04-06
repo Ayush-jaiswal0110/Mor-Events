@@ -366,19 +366,16 @@ export function RegistrationModal({ eventId, eventName, eventPrice }: Registrati
             <div className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4 text-center">
               {eventPrice !== undefined && <p className="text-sm text-gray-500 mb-1">Total Amount: <span className="font-bold text-lg text-[#0F3057] dark:text-white">₹{eventPrice}</span></p>}
 
-              <div className="relative group inline-block w-full">
+              <div className="w-full">
                 <Button
                   type="button"
+                  onClick={handleRazorpayPayment}
+                  disabled={isSubmitting}
                   className="w-full bg-[#3399cc] hover:bg-[#2b88b7] text-white"
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
                   Pay Now via Razorpay
                 </Button>
-                {/* Tooltip on hover */}
-                <div className="absolute opacity-0 group-hover:opacity-100 transition duration-300 bottom-full mb-2 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
-                  Temporarily Disabled
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-                </div>
               </div>
 
               <div className="mt-4 flex items-center justify-center space-x-2 text-sm text-gray-400">

@@ -67,7 +67,7 @@ def verify_payment(request):
         
         # Payment verified, now create registration
         event_id = registration_data.get('eventId')
-        event = events_collection.find_one({"id": event_id})
+        event = events_collection.find_one({"_id": event_id})
         if not event:
              return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
         

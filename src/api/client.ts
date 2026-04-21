@@ -3,7 +3,7 @@
 
 // export const API_BASE_URL = 'http://localhost:8000/api'; // Or 8080 depending on what port Django runs on, we'll use 8000 for standard runserver unless port was specified
 
-export const API_BASE_URL = "https://cybershield-backend-app.azurewebsites.net/api"
+export const API_BASE_URL = "https://cybershield-backend-new.azurewebsites.net/api"
 export const getAuthToken = () => {
   return localStorage.getItem('morevents_token');
 };

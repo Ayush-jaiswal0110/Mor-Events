@@ -1,7 +1,11 @@
 import { Button } from "../ui/button";
 import { motion } from "motion/react";
 
-export function HeroSection() {
+interface HeroSectionProps {
+  triggerAnimations?: boolean;
+}
+
+export function HeroSection({ triggerAnimations = true }: HeroSectionProps) {
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
@@ -29,7 +33,7 @@ export function HeroSection() {
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={triggerAnimations ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8 }}
           className="text-5xl md:text-7xl font-bold text-white mb-6"
         >
@@ -37,7 +41,7 @@ export function HeroSection() {
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={triggerAnimations ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-xl md:text-3xl text-white/90 mb-4"
         >
@@ -45,7 +49,7 @@ export function HeroSection() {
         </motion.p>
         <motion.p
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={triggerAnimations ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.3 }}
           className="text-lg md:text-xl text-white/80 mb-10"
         >
@@ -53,7 +57,7 @@ export function HeroSection() {
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={triggerAnimations ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.8, delay: 0.4 }}
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
@@ -78,7 +82,7 @@ export function HeroSection() {
       {/* Scroll Indicator */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={triggerAnimations ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: 1, delay: 1 }}
         className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
       >
@@ -93,3 +97,4 @@ export function HeroSection() {
     </section>
   );
 }
+

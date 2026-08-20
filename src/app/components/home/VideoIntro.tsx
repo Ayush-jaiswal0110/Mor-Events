@@ -102,11 +102,14 @@ export function VideoIntro({ onComplete }: VideoIntroProps) {
             src={introVideo}
             autoPlay
             playsInline
+            // @ts-ignore
+            webkit-playsinline="true"
             muted={isMuted}
             onTimeUpdate={handleTimeUpdate}
             onEnded={handleVideoEnded}
             onCanPlay={() => setIsLoaded(true)}
             onClick={togglePlay}
+            style={{ objectFit: 'cover' }}
             className={`w-full h-full object-cover transition-opacity duration-1000 ${
               isLoaded ? "opacity-100" : "opacity-0"
             } cursor-pointer`}

@@ -19,6 +19,7 @@ import { motion } from "motion/react";
 import { useState, useCallback, useEffect } from "react";
 import { getMediaType, normalizeYouTubeUrl, normalizeInstagramUrl } from "../data/mockData";
 import { RegistrationModal } from "../components/events/RegistrationModal";
+import { WeatherWidget } from "../components/events/WeatherWidget";
 
 function FormattedText({ text }: { text: string }) {
   if (!text) return null;
@@ -340,7 +341,12 @@ export function EventDetailPage() {
 
                 {/* Register button */}
                 {event.status === "upcoming" && (
-                  <RegistrationModal eventId={event.id} eventName={event.name} eventPrice={event.price} />
+                  <Link to={`/event/${event.id}/register`} className="w-full">
+                    <Button size="lg" className="w-full bg-[#0F3057] hover:bg-[#008080] text-white font-bold py-6 text-base shadow-lg">
+                      <ExternalLink className="mr-2 h-5 w-5" />
+                      Register Now
+                    </Button>
+                  </Link>
                 )}
 
                 {/* Completed notice */}
@@ -407,6 +413,9 @@ export function EventDetailPage() {
 
           {/* ── MAIN CONTENT ── */}
           <div className="w-full min-w-0 order-last lg:order-first lg:col-span-2 space-y-4 sm:space-y-6">
+
+            {/* Live Weather & Safety Broadcast Widget */}
+            <WeatherWidget venue={event.venue} date={event.date} />
 
             {/* About */}
             <Card className="w-full overflow-hidden">

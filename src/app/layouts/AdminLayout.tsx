@@ -9,8 +9,10 @@ import {
   Users,
   Star,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import logoImg from "../../assets/84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png";
+
 import { useEffect, useState } from "react";
 
 export function AdminLayout() {
@@ -69,6 +71,14 @@ export function AdminLayout() {
             <Star className="h-5 w-5" />
             <span>Reviews</span>
           </Link>
+          <Link
+            to="/admin/dashboard/whatsapp"
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span>WhatsApp</span>
+          </Link>
+
         </nav>
 
         <div className="space-y-2 mt-auto">

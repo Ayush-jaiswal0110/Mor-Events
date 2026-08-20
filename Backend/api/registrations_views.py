@@ -50,46 +50,58 @@ def registrations_list(request):
         return get_regs(request)
 
     elif request.method == 'POST':
-        data = request.data
-        reg_id = f"reg_{uuid.uuid4().hex[:8]}"
-        reg_num = f"MOR{datetime.now().year}{str(registrations_collection.count_documents({}) + 1).zfill(3)}"
-        
-        event = events_collection.find_one({"_id": data.get('eventId')})
-        if not event:
-            return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-        new_reg = {
-            "_id": reg_id,
-            "registrationNumber": reg_num,
-            "name": data.get('name'),
-            "email": data.get('email'),
-            "phone": data.get('phone'),
-            "eventId": data.get('eventId'),
-            "eventName": event.get('name', ''),
-            "paymentStatus": data.get('paymentStatus', 'pending'), # Might be provided by external integrations initially or purely pending
-            "paymentId": data.get('paymentId', ''),
-            "paymentMethod": data.get('paymentMethod', 'pending'),
-            "paymentScreenshot": data.get('paymentScreenshot', ''),
-            "amount": event.get('price', 0),
-            "emergencyContact": data.get('emergencyContact', ''),
-            "medicalConditions": data.get('medicalConditions', ''),
-            "dietaryRestrictions": data.get('dietaryRestrictions', ''),
-            "registeredAt": datetime.utcnow().isoformat() + 'Z'
-        }
-        
-        registrations_collection.insert_one(new_reg)
-        
-        # Send confirmation email asynchronously so it doesn't block the response
-        def send_email_task():
-            send_confirmation_email(new_reg, event)
-            
-        threading.Thread(target=send_email_task).start()
+        # Booking now requires a signed-in traveler (Google Sign-In) — see
+        # ACCOUNT_DASHBOARD_PROFILE.md. Anonymous booking is no longer
+        # allowed; this mirrors the same @login_required pattern used
+        # everywhere else in this app rather than inventing a new one.
+        @login_required
+        def create_registration(req):
+            data = req.data
+            reg_id = f"reg_{uuid.uuid4().hex[:8]}"
+            reg_num = f"MOR{datetime.now().year}{str(registrations_collection.count_documents({}) + 1).zfill(3)}"
 
-        return Response({
-            "success": True,
-            "message": "Registration successful",
-            "data": clean_mongo_dict(new_reg)
-        }, status=status.HTTP_201_CREATED)
+            event = events_collection.find_one({"_id": data.get('eventId')})
+            if not event:
+                return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            new_reg = {
+                "_id": reg_id,
+                "registrationNumber": reg_num,
+                "userId": req.user_info.get("id"),
+                "name": data.get('name'),
+                "email": data.get('email'),
+                "phone": data.get('phone'),
+                "age": data.get('age', ''),
+                "gender": data.get('gender', ''),
+                "city": data.get('city', ''),
+                "eventId": data.get('eventId'),
+                "eventName": event.get('name', ''),
+                "paymentStatus": data.get('paymentStatus', 'pending'), # Might be provided by external integrations initially or purely pending
+                "paymentId": data.get('paymentId', ''),
+                "paymentMethod": data.get('paymentMethod', 'pending'),
+                "paymentScreenshot": data.get('paymentScreenshot', ''),
+                "amount": event.get('price', 0),
+                "emergencyContact": data.get('emergencyContact', ''),
+                "medicalConditions": data.get('medicalConditions', ''),
+                "dietaryRestrictions": data.get('dietaryRestrictions', ''),
+                "registeredAt": datetime.utcnow().isoformat() + 'Z'
+            }
+
+            registrations_collection.insert_one(new_reg)
+
+            # Send confirmation email asynchronously so it doesn't block the response
+            def send_email_task():
+                send_confirmation_email(new_reg, event)
+
+            threading.Thread(target=send_email_task).start()
+
+            return Response({
+                "success": True,
+                "message": "Registration successful",
+                "data": clean_mongo_dict(new_reg)
+            }, status=status.HTTP_201_CREATED)
+
+        return create_registration(request)
 
 @api_view(['GET', 'DELETE'])
 @login_required
@@ -204,8 +216,31 @@ def invite_whatsapp(request):
         send_whatsapp_invite_email(regs, event_name, whatsapp_link)
         
     threading.Thread(target=trigger_emails).start()
-    
+
     return Response({
         "success": True,
         "message": f"WhatsApp community invite queued for {len(regs)} attendees."
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@login_required
+def my_registrations_view(request):
+    """
+    GET /api/my/registrations — a signed-in traveler's own bookings/tickets
+    (shown on their Dashboard). Only returns registrations created after
+    login became required, since older/anonymous bookings have no `userId`
+    to match against — intentional, we never guess ownership of legacy data.
+    """
+    user_id = request.user_info.get("id")
+    cursor = registrations_collection.find({"userId": user_id}).sort([("registeredAt", -1)])
+    regs = [clean_mongo_dict(doc) for doc in cursor]
+
+    # Enrich each registration with the event's date from the events collection
+    for reg in regs:
+        event = events_collection.find_one({"_id": reg.get("eventId")})
+        if event:
+            reg["eventDate"] = event.get("date", "")
+            reg["eventLocation"] = event.get("location", "")
+
+    return Response({"success": True, "data": regs}, status=status.HTTP_200_OK)

@@ -1,14 +1,28 @@
-import { Outlet, Link } from "react-router";
+import { Outlet, Link, useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Menu, X } from "lucide-react";
+import { Moon, Sun, Menu, X, MapPinned, LayoutDashboard, UserCircle, LogOut, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import logoImg from "../../assets/84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png";
+import { useAuth } from "../context/AuthContext";
 
 export function MainLayout() {
   const { setTheme, resolvedTheme } = useTheme();
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Signed out");
+    navigate("/");
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -95,6 +109,20 @@ export function MainLayout() {
               >
                 Terms
               </Link>
+              <Link
+                to="/plan-trip"
+                className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-[#0F3057] dark:hover:text-white transition-colors font-medium"
+              >
+                <MapPinned className="h-4 w-4" /> Plan My Trip
+              </Link>
+              {isAuthenticated && (
+                <Link
+                  to="/my-trips"
+                  className="text-gray-700 dark:text-gray-300 hover:text-[#0F3057] dark:hover:text-white transition-colors"
+                >
+                  My Trips
+                </Link>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -106,8 +134,41 @@ export function MainLayout() {
                   <Moon className="h-5 w-5" />
                 )}
               </Button>
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1">
+                      {user?.name?.split(" ")[0] || "My Account"}
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                      <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/my-trips")}>
+                      <MapPinned className="h-4 w-4" /> My Trips
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/profile")}>
+                      <UserCircle className="h-4 w-4" /> Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4" /> Log Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
               <Link to="/admin">
-                <Button variant="outline" size="sm">
+                <Button variant="ghost" size="sm">
                   Admin
                 </Button>
               </Link>
@@ -187,8 +248,55 @@ export function MainLayout() {
                 >
                   Terms
                 </Link>
+                <Link
+                  to="/plan-trip"
+                  className="text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded font-medium flex items-center gap-1"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <MapPinned className="h-4 w-4" /> Plan My Trip
+                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/dashboard"
+                      className="text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-1"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    </Link>
+                    <Link
+                      to="/my-trips"
+                      className="text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-1"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <MapPinned className="h-4 w-4" /> My Trips
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-1"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <UserCircle className="h-4 w-4" /> Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="text-left px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800 rounded flex items-center gap-1"
+                    >
+                      <LogOut className="h-4 w-4" /> Log Out
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/login" className="px-4" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" size="sm" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/admin" className="px-4">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="ghost" size="sm" className="w-full">
                     Admin Login
                   </Button>
                 </Link>
@@ -205,11 +313,12 @@ export function MainLayout() {
 
       {/* WhatsApp Floating Button */}
       <a
-        href="https://wa.me/917024896018"
+        href="https://chat.whatsapp.com/KnDHLWgMgF7DChf6RV7fR3"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-all hover:scale-110"
-        aria-label="Contact on WhatsApp"
+        className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#128C7E] text-white p-4 rounded-full shadow-lg transition-all hover:scale-110 flex items-center justify-center group"
+        aria-label="Join Mor Events WhatsApp Community"
+        title="Join Mor Events WhatsApp Community"
       >
         <svg
           className="w-6 h-6"

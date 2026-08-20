@@ -474,6 +474,147 @@ def _build_failed_html(reg: dict, event: dict) -> str:
 """
 
 
+def _build_trip_share_html(trip: dict, share: dict, sender_name: str, trip_url: str) -> str:
+    destination = trip.get("destination", "your destination")
+    start_date = _format_date(trip.get("startDate", ""))
+    end_date = _format_date(trip.get("endDate", ""))
+    recipient_name = share.get("recipientName") or "there"
+    message = share.get("message") or ""
+    summary = trip.get("summary") or "A personalized day-wise itinerary planned with MorEvents' AI Trip Planner."
+
+    message_block = ""
+    if message:
+        message_block = f"""
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="background:#fff8e1;border-radius:12px;border:1px solid #ffe082;margin-top:20px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 4px;color:#0F3057;font-size:13px;font-weight:700;">💬 Personal message from {sender_name}</p>
+                    <p style="margin:0;color:#555;font-size:14px;line-height:1.6;font-style:italic;">"{message}"</p>
+                  </td>
+                </tr>
+              </table>
+        """
+
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0F3057 0%,#4B0082 100%);padding:36px 40px;text-align:center;">
+              <img src="cid:logo_img" alt="MorEvents Logo" style="width:72px;height:72px;border-radius:50%;margin-bottom:12px;border:3px solid rgba(255,255,255,0.5);" />
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">✈️ {sender_name} shared a trip with you!</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 0;text-align:center;">
+              <h2 style="margin:0 0 8px;color:#0F3057;font-size:22px;font-weight:700;">Hi {recipient_name},</h2>
+              <p style="margin:0;color:#555;font-size:15px;line-height:1.6;">{sender_name} planned a trip to <strong>{destination}</strong> and wants to share it with you.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f7ff;border-radius:12px;border:1px solid #d0e4f7;">
+                <tr>
+                  <td style="padding:24px 28px;">
+                    <h3 style="margin:0 0 10px;color:#0F3057;font-size:16px;font-weight:700;">📍 {destination}</h3>
+                    <p style="margin:0 0 10px;color:#666;font-size:14px;">📅 {start_date} – {end_date}</p>
+                    <p style="margin:0;color:#555;font-size:14px;line-height:1.6;">{summary}</p>
+                  </td>
+                </tr>
+              </table>
+              {message_block}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px;text-align:center;">
+              <a href="{trip_url}" style="display:inline-block;padding:14px 32px;background:#008080;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">View the Itinerary</a>
+              <p style="margin:16px 0 0;color:#999;font-size:12px;">This link only shows the trip itinerary — no personal account information is visible.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 32px;text-align:center;">
+              <p style="margin:0;color:#aaa;font-size:12px;line-height:1.8;">Sent via MorEvents Trip Planner. © 2026 MorEvents — Travel. Explore. Experience.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def send_trip_share_email(trip: dict, share: dict, sender_name: str, trip_url: str) -> bool:
+    """
+    Sends a trip-share email pointing at a secure shared-trip link. Follows
+    the same SMTP pattern as the registration emails above so it reuses the
+    project's existing (and only) email infrastructure.
+    """
+    recipient = share.get("recipientEmail")
+    if not recipient:
+        logger.warning("No recipient email on trip share %s — skipping.", share.get("_id"))
+        return False
+    if not EMAIL_HOST_PASSWORD:
+        logger.warning("EMAIL_HOST_PASSWORD not configured — skipping trip share email.")
+        return False
+
+    destination = trip.get("destination", "a trip")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"{sender_name} shared a trip to {destination} with you — MorEvents"
+    msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
+    msg["To"] = recipient
+    msg["Reply-To"] = EMAIL_HOST_USER
+
+    plain_text = (
+        f"Hi {share.get('recipientName') or 'there'},\n\n"
+        f"{sender_name} planned a trip to {destination} and wants to share it with you.\n\n"
+        f"View it here: {trip_url}\n\n"
+        f"— Sent via MorEvents Trip Planner"
+    )
+    msg.attach(MIMEText(plain_text, "plain"))
+
+    html_part = MIMEMultipart("related")
+    html_part.attach(MIMEText(_build_trip_share_html(trip, share, sender_name, trip_url), "html"))
+
+    try:
+        from email.mime.image import MIMEImage
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root_dir = os.path.dirname(backend_dir)
+        logo_path = os.path.join(root_dir, "src", "assets", "84eb31f383e3c5c569c8f83a91ad8f1d232586a2.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                img_data = f.read()
+            image = MIMEImage(img_data, name="logo.png")
+            image.add_header('Content-ID', '<logo_img>')
+            image.add_header('Content-Disposition', 'inline', filename='logo.png')
+            html_part.attach(image)
+    except Exception as e:
+        logger.error(f"Failed to attach logo: {e}")
+
+    msg.attach(html_part)
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+            server.sendmail(EMAIL_HOST_USER, [recipient], msg.as_string())
+        logger.info(f"Trip share email sent to {recipient}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to send trip share email to {recipient}: {exc}")
+        return False
+
+
 def send_payment_failed_email(reg: dict, event: dict) -> bool:
     """
     Send a payment-failed / registration-cancelled email to the registrant.
@@ -543,3 +684,131 @@ def send_payment_failed_email(reg: dict, event: dict) -> bool:
     except Exception as exc:
         logger.error(f"Failed to send payment-failed email to {recipient}: {exc}")
         return False
+
+
+def broadcast_event_notification(event: dict, is_update: bool = False) -> dict:
+    """
+    Broadcast email notification to all registered users when an event is created or updated.
+    """
+    if not EMAIL_HOST_PASSWORD:
+        logger.warning("EMAIL_HOST_PASSWORD not configured — skipping event broadcast.")
+        return {"success": False, "message": "Email not configured"}
+
+    from .database import users_collection, registrations_collection
+
+    # Fetch unique email addresses from both user accounts and event registrations
+    user_emails = set()
+    for user in users_collection.find({}, {"email": 1, "name": 1}):
+        if user.get("email"):
+            user_emails.add((user.get("email"), user.get("name") or "Explorer"))
+            
+    for reg in registrations_collection.find({}, {"email": 1, "name": 1}):
+        if reg.get("email"):
+            user_emails.add((reg.get("email"), reg.get("name") or "Explorer"))
+
+    if not user_emails:
+        logger.info("No registered users found to send event notification broadcast.")
+        return {"success": True, "sent": 0}
+
+    event_name = event.get("name", "New Mor Events Adventure")
+    event_date = _format_date(event.get("date", ""))
+    event_venue = event.get("venue", "TBA")
+    event_price = event.get("price", 0)
+    event_desc = event.get("shortDescription") or event.get("description", "")
+
+    action_title = "Update on Event: " + event_name if is_update else "🎉 New Event Announcement: " + event_name
+    subject = f"[{'Event Update' if is_update else 'New Event'}] {event_name} — MorEvents"
+
+    sent_count = 0
+    failed_count = 0
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
+
+            for email, name in user_emails:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = f"MorEvents <{EMAIL_HOST_USER}>"
+                msg["To"] = email
+                msg["Reply-To"] = EMAIL_HOST_USER
+
+                plain_text = (
+                    f"Hi {name},\n\n"
+                    f"{'An event you might be interested in has been updated!' if is_update else 'Mor Events is excited to announce a new upcoming trip / event!'}\n\n"
+                    f"Event: {event_name}\n"
+                    f"Date: {event_date}\n"
+                    f"Venue: {event_venue}\n"
+                    f"Price: ₹{event_price}\n\n"
+                    f"Details:\n{event_desc}\n\n"
+                    f"Register now on our website to secure your spot!\n\n"
+                    f"— Team MorEvents"
+                )
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head><meta charset="UTF-8" /></head>
+                <body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;">
+                    <tr>
+                      <td align="center">
+                        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                          <tr>
+                            <td style="background:linear-gradient(135deg,#0F3057 0%,#008080 100%);padding:36px;text-align:center;">
+                              <h1 style="margin:0;color:#ffffff;font-size:22px;">{action_title}</h1>
+                              <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">MorEvents • Travel. Explore. Experience.</p>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:32px;">
+                              <h2 style="margin:0 0 12px;color:#0F3057;font-size:18px;">Hello {name},</h2>
+                              <p style="margin:0 0 20px;color:#555;line-height:1.6;">
+                                {'We have updated the details for an upcoming event you might be looking forward to.' if is_update else 'We are thrilled to launch our next trip/event! Get ready to explore breathtaking destinations.'}
+                              </p>
+                              <div style="background:#f0f7ff;border:1px solid #d0e4f7;border-radius:12px;padding:20px;margin-bottom:24px;">
+                                <h3 style="margin:0 0 10px;color:#0F3057;font-size:16px;">🎪 {event_name}</h3>
+                                <p style="margin:4px 0;color:#555;font-size:14px;"><strong>📅 Date:</strong> {event_date}</p>
+                                <p style="margin:4px 0;color:#555;font-size:14px;"><strong>📍 Venue:</strong> {event_venue}</p>
+                                <p style="margin:4px 0;color:#008080;font-size:14px;"><strong>💰 Price:</strong> ₹{event_price}</p>
+                                <p style="margin:12px 0 0;color:#666;font-size:13px;line-height:1.5;">{event_desc}</p>
+                              </div>
+                              <div style="text-align:center;">
+                                <a href="http://localhost:5173" style="display:inline-block;padding:14px 28px;background:#0F3057;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;">
+                                  View Event & Register Now
+                                </a>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:20px;text-align:center;background:#f9fafb;border-top:1px solid #eee;">
+                              <p style="margin:0;color:#999;font-size:12px;">© 2026 MorEvents — All rights reserved.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """
+
+                msg.attach(MIMEText(plain_text, "plain"))
+                msg.attach(MIMEText(html_content, "html"))
+
+                try:
+                    server.sendmail(EMAIL_HOST_USER, [email], msg.as_string())
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to send event notification to {email}: {e}")
+                    failed_count += 1
+
+        logger.info(f"Event broadcast complete: {sent_count} sent, {failed_count} failed.")
+        return {"success": True, "sent": sent_count, "failed": failed_count}
+    except Exception as exc:
+        logger.error(f"Failed event broadcast SMTP: {exc}")
+        return {"success": False, "message": str(exc)}
+

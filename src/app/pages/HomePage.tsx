@@ -7,7 +7,11 @@ import { EventsSection } from "../components/home/EventsSection";
 import { GallerySection } from "../components/home/GallerySection";
 import { ReviewsSection } from "../components/home/ReviewsSection";
 import { RegistrationSection } from "../components/home/RegistrationSection";
+import { MembershipSection } from "../components/home/MembershipSection";
 import { WhyChooseSection } from "../components/home/WhyChooseSection";
+
+import { NewEventNotification } from "../components/home/NewEventNotification";
+import { StayUpdatedSection } from "../components/home/StayUpdatedSection";
 import { ContactSection } from "../components/home/ContactSection";
 import { Footer } from "../components/home/Footer";
 
@@ -42,14 +46,16 @@ export function HomePage() {
         animate={introFinished ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
       >
+        <NewEventNotification />
         <HeroSection triggerAnimations={introFinished} />
-        <AboutSection />
+        <StayUpdatedSection />
         <EventsSection />
         <WhyChooseSection />
         <GallerySection />
         <ReviewsSection />
-        <RegistrationSection />
+        <AboutSection />
         <ContactSection />
+
         <Footer />
       </motion.div>
     </div>

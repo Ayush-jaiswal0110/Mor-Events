@@ -1,12 +1,18 @@
-import { useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "sonner";
-import { apiFetch } from "../../../api/client";
+import { userApiFetch as apiFetch } from "../../../api/userClient";
+import { useAuth } from "../../context/AuthContext";
 import { ExternalLink, CreditCard, UploadCloud, CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
 import paymentQr from "../../../assets/payment_qr.png";
+
+// NOTE: booking now requires a signed-in traveler (see ACCOUNT_DASHBOARD_PROFILE.md).
+// `apiFetch` here is the consumer (Google Sign-In) client, not the admin one —
+// aliased on import so the rest of this file didn't need to change.
 
 interface RegistrationModalProps {
   eventId: string;
@@ -15,6 +21,9 @@ interface RegistrationModalProps {
 }
 
 export function RegistrationModal({ eventId, eventName, eventPrice }: RegistrationModalProps) {
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [viewingTerms, setViewingTerms] = useState(false);
@@ -34,6 +43,27 @@ export function RegistrationModal({ eventId, eventName, eventPrice }: Registrati
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Prefill from the traveler's signed-in profile the first time the modal opens.
+  useEffect(() => {
+    if (open && user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || user.name || "",
+        email: prev.email || user.email || "",
+        phone: prev.phone || user.phone || "",
+      }));
+    }
+  }, [open, user]);
+
+  const handleOpenRegistration = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to book this event.");
+      navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
+    setOpen(true);
+  };
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,20 +219,23 @@ export function RegistrationModal({ eventId, eventName, eventPrice }: Registrati
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => {
-      setOpen(val);
-      if (!val) {
-        // give it time to animate out before resetting step layout if they re-open
-        setTimeout(() => setStep(1), 300);
-      }
-    }}>
-      <DialogTrigger asChild>
-        <Button size="lg" className="w-full bg-[#0F3057] hover:bg-[#008080] text-white">
-          <ExternalLink className="mr-2 h-5 w-5" />
-          Register Now
-        </Button>
-      </DialogTrigger>
+    <>
+      <Button
+        size="lg"
+        className="w-full bg-[#0F3057] hover:bg-[#008080] text-white"
+        onClick={handleOpenRegistration}
+      >
+        <ExternalLink className="mr-2 h-5 w-5" />
+        Register Now
+      </Button>
 
+      <Dialog open={open} onOpenChange={(val) => {
+        setOpen(val);
+        if (!val) {
+          // give it time to animate out before resetting step layout if they re-open
+          setTimeout(() => setStep(1), 300);
+        }
+      }}>
       {/* Dynamic max-width based on step */}
       <DialogContent className={`transition-all duration-300 ${step === 2 || showSuccess ? 'sm:max-w-[500px]' : 'sm:max-w-[425px]'}`}>
         <DialogHeader>
@@ -449,6 +482,7 @@ export function RegistrationModal({ eventId, eventName, eventPrice }: Registrati
           </div>
         )}
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

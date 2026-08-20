@@ -86,6 +86,18 @@ def events_list(request):
             }
             
             events_collection.insert_one(new_event)
+
+            # Broadcast email notification to registered users asynchronously
+            def send_broadcast_task():
+                try:
+                    from .email_utils import broadcast_event_notification
+                    broadcast_event_notification(new_event, is_update=False)
+                except Exception as e:
+                    print(f"Error in event broadcast thread: {e}")
+
+            import threading
+            threading.Thread(target=send_broadcast_task).start()
+
             return Response({
                 "success": True,
                 "message": "Event created successfully",
@@ -131,6 +143,18 @@ def event_detail(request, pk):
                 return Response({"success": False, "message": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
                 
             updated_event = events_collection.find_one({"_id": query_id})
+
+            # Broadcast update email notification asynchronously
+            def send_update_broadcast_task():
+                try:
+                    from .email_utils import broadcast_event_notification
+                    broadcast_event_notification(updated_event, is_update=True)
+                except Exception as e:
+                    print(f"Error in event update broadcast thread: {e}")
+
+            import threading
+            threading.Thread(target=send_update_broadcast_task).start()
+
             return Response({
                 "success": True,
                 "message": "Event updated successfully",

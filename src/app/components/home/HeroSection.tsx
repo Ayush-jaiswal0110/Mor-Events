@@ -63,18 +63,17 @@ export function HeroSection({ triggerAnimations = true }: HeroSectionProps) {
         >
           <Button
             size="lg"
-            className="bg-white text-[#0F3057] hover:bg-gray-100 text-lg px-8 py-6"
+            className="bg-white text-[#0F3057] hover:bg-gray-100 font-bold text-lg px-8 py-6 shadow-lg"
             onClick={() => scrollToSection("events")}
           >
             View Upcoming Events
           </Button>
           <Button
             size="lg"
-            variant="outline"
-            className="border-white text-white hover:bg-white/10 text-lg px-8 py-6"
-            onClick={() => scrollToSection("registration")}
+            className="bg-[#008080] hover:bg-[#006666] text-white font-bold text-lg px-8 py-6 shadow-lg border-2 border-teal-300/30"
+            onClick={() => scrollToSection("stay-updated")}
           >
-            Join Next Trip
+            Register / Join Community
           </Button>
         </motion.div>
       </div>

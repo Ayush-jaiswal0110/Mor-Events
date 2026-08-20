@@ -6,6 +6,7 @@ from rest_framework import status
 from .database import registrations_collection, events_collection
 from .events_views import clean_mongo_dict
 from .email_utils import send_confirmation_email
+from .utils import login_required
 import threading
 from datetime import datetime
 import uuid
@@ -19,6 +20,7 @@ if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
     client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 @api_view(['POST'])
+@login_required
 def create_order(request):
     if not client:
         return Response({"success": False, "message": "Razorpay keys not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -41,9 +43,11 @@ def create_order(request):
         return Response({"success": False, "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
+@login_required
 def verify_payment(request):
     """
-    Verifies the payment and inserts the registration into MongoDB
+    Verifies the payment and inserts the registration into MongoDB.
+    Requires a signed-in traveler — see ACCOUNT_DASHBOARD_PROFILE.md.
     """
     if not client:
         return Response({"success": False, "message": "Razorpay keys not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -81,6 +85,7 @@ def verify_payment(request):
         new_reg = {
             "_id": reg_id,
             "registrationNumber": reg_num,
+            "userId": request.user_info.get("id"),
             "name": registration_data.get('name'),
             "email": registration_data.get('email'),
             "phone": registration_data.get('phone'),

@@ -1,14 +1,12 @@
 [build]
-  command   = "npm run build"
-  publish   = "dist"
+  command = "npm run build"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
-  # Vite intentionally embeds these public client-side settings in the bundle.
-  # Keep secrets scanning enabled for every other environment variable.
   SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL,VITE_GOOGLE_CLIENT_ID"
 
 [[redirects]]
-  from   = "/*"
-  to     = "/index.html"
+  from = "/*"
+  to = "/index.html"
   status = 200

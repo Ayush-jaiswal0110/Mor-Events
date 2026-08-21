@@ -3,7 +3,7 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "24"
   SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL,VITE_GOOGLE_CLIENT_ID"
 
 [[redirects]]
